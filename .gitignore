@@ -1,0 +1,11 @@
+# local cache and personal search results
+cache/
+results.csv
+seen.json
+.claude/
+__pycache__/
+*.pyc
+.DS_Store
+.env
+.env.*
+rentcast_key.txt

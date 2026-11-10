@@ -1,0 +1,935 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Launch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root {
+    --white: #ffffff;
+    --ink: #111827;
+    --ink-2: #374151;
+    --muted: #6b7280;
+    --faint: #9ca3af;
+    --line: #e5e7eb;
+    --line-2: #f0f1f4;
+    --wash: #f8f9fb;
+
+    --blue: #1d4ed8;
+    --blue-600: #1e40af;
+    --blue-50: #eef3ff;
+    --blue-100: #dbe6ff;
+    --orange: #f97316;
+    --orange-600: #ea580c;
+    --orange-50: #fff4ec;
+
+    --gA: #16a34a; --gB: #65a30d; --gC: #d4a106; --gD: #ea580c; --gF: #dc2626; --gU: #a3aab5;
+
+    --r: 8px;
+    --h: 36px;
+    --shadow-sm: 0 1px 2px rgba(17, 24, 39, .05);
+    --shadow-md: 0 8px 24px rgba(17, 24, 39, .10);
+    --side: 288px;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    display: flex; flex-direction: column;
+    background: var(--white); color: var(--ink);
+    font: 14px/1.45 "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: "tnum" 1;
+  }
+  a { color: var(--blue); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  button, input, select { font: inherit; color: inherit; }
+  svg { flex: none; }
+
+  /* ---------- controls ---------- */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    height: var(--h); padding: 0 14px; border-radius: var(--r);
+    border: 1px solid var(--line); background: var(--white); color: var(--ink-2);
+    font-weight: 600; cursor: pointer; white-space: nowrap;
+    transition: background .12s, border-color .12s, color .12s;
+  }
+  .btn:hover { background: var(--wash); }
+  .btn.blue { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .btn.blue:hover { background: var(--blue-600); }
+  .btn.on { background: var(--blue-50); border-color: var(--blue-100); color: var(--blue); }
+  .btn.icon { width: var(--h); padding: 0; }
+  .btn .badge {
+    min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px;
+    background: var(--orange); color: #fff; font-size: 11px; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .field {
+    height: var(--h); width: 100%; padding: 0 12px; border-radius: var(--r);
+    border: 1px solid var(--line); background: var(--white); outline: none;
+    transition: border-color .12s, box-shadow .12s;
+  }
+  .field:focus { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-50); }
+  select.field { appearance: none; padding-right: 34px; cursor: pointer;
+    background: var(--white) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center; }
+  .affix { position: relative; }
+  .affix .field { padding-left: 24px; text-align: right; }
+  .affix::before { content: attr(data-pre); position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--faint); pointer-events: none; }
+  .affix.suffix .field { padding-left: 12px; padding-right: 44px; text-align: left; }
+  .affix.suffix::before { content: none; }
+  .affix.suffix::after { content: attr(data-suf); position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--faint); font-size: 12px; pointer-events: none; }
+  input[type=range] { width: 100%; margin: 0; accent-color: var(--blue); cursor: pointer; }
+  input[type=range]:disabled { opacity: .4; cursor: default; }
+  input[type=checkbox] { width: 16px; height: 16px; margin: 0; accent-color: var(--blue); cursor: pointer; }
+  .link { background: none; border: 0; padding: 0; color: var(--blue); font-weight: 600; font-size: 12px; cursor: pointer; }
+  .link:hover { text-decoration: underline; }
+
+  .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+  .seg button {
+    height: calc(var(--h) - 2px); border: 0; border-left: 1px solid var(--line); background: var(--white);
+    color: var(--ink-2); font-weight: 600; font-size: 13px; cursor: pointer;
+  }
+  .seg button:first-child { border-left: 0; }
+  .seg button:hover { background: var(--wash); }
+  .seg button.on { background: var(--blue); color: #fff; }
+
+  /* ---------- header ---------- */
+  header {
+    display: flex; align-items: center; gap: 12px;
+    height: 64px; padding: 0 20px; border-bottom: 1px solid var(--line); background: var(--white);
+    position: relative; z-index: 1100;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; margin-right: 12px; font-weight: 800; font-size: 16px; letter-spacing: -.01em; white-space: nowrap; }
+  .brand-mark { width: 30px; height: 30px; border-radius: 8px; background: var(--blue); display: grid; place-items: center; }
+  .brand b { color: var(--orange); font-weight: 800; }
+  .search { position: relative; flex: 1 1 auto; max-width: 560px; display: flex; gap: 8px; }
+  .search .field { padding-left: 38px; }
+  .search .glass { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--faint); pointer-events: none; }
+  .results {
+    position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 1200;
+    background: var(--white); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow-md);
+    max-height: 340px; overflow: auto; padding: 4px;
+  }
+  .results div { padding: 9px 10px; border-radius: 6px; cursor: pointer; color: var(--ink-2); font-size: 13px; }
+  .results div:hover { background: var(--blue-50); color: var(--ink); }
+  .spacer { flex: 1; }
+  .hgroup { display: flex; gap: 8px; }
+
+  /* ---------- layout ---------- */
+  main { flex: 1; display: flex; min-height: 0; }
+  body.no-filters aside { display: none; }
+  body.no-map .mapwrap { display: none; }
+
+  /* ---------- filters ---------- */
+  aside { width: var(--side); flex: none; display: flex; flex-direction: column; border-right: 1px solid var(--line); background: var(--white); min-height: 0; }
+  .side-head { display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 12px 0 20px; border-bottom: 1px solid var(--line); flex: none; }
+  .side-head h2 { margin: 0; font-size: 15px; font-weight: 700; }
+  .side-body { flex: 1; overflow: auto; }
+  .fs { padding: 18px 18px; border-bottom: 1px solid var(--line-2); }
+  .fs-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+  .fs-head h3 { margin: 0; font-size: 13px; font-weight: 700; color: var(--ink); }
+  .fs-val { font-size: 13px; font-weight: 600; color: var(--blue); }
+  .fs-note { font-size: 12px; color: var(--faint); }
+  .hint { margin: 10px 0 0; font-size: 12px; line-height: 1.5; color: var(--muted); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .grid2 label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+  .stack { display: grid; gap: 12px; }
+  .scale { display: flex; justify-content: space-between; margin-top: 6px; font-size: 11px; color: var(--faint); }
+  .checks { display: grid; gap: 2px; }
+  .check { display: flex; align-items: center; gap: 10px; min-height: 32px; padding: 0 8px; margin: 0 -8px; border-radius: 6px; cursor: pointer; color: var(--ink-2); }
+  .check:hover { background: var(--wash); }
+  .check .n { margin-left: auto; font-size: 12px; color: var(--faint); }
+  .hoods { max-height: 232px; overflow: auto; margin-top: 10px; }
+  .note-bad { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .note-bad b { color: var(--orange-600); font-weight: 600; }
+  .note-pending { display: flex; align-items: center; gap: 8px; }
+  .note-pending b { color: var(--blue); }
+  .spinner.sm { width: 12px; height: 12px; border-width: 2px; }
+  .side-foot { flex: none; display: flex; align-items: center; justify-content: space-between; height: 60px; padding: 0 20px; border-top: 1px solid var(--line); }
+  .side-foot span { font-size: 12px; color: var(--muted); }
+
+  /* ---------- results ---------- */
+  .content { flex: 1; display: flex; min-width: 0; }
+  .list { flex: 1 1 64%; display: flex; flex-direction: column; min-width: 0; }
+  .toolbar { display: flex; align-items: center; gap: 16px; min-height: 72px; padding: 12px 20px; border-bottom: 1px solid var(--line); }
+  .toolbar h1 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -.02em; line-height: 1.2; }
+  .toolbar h1 span { color: var(--muted); font-weight: 600; font-size: 14px; letter-spacing: 0; margin-left: 4px; }
+  .sub { font-size: 12px; color: var(--muted); }
+  .toolbar .sub { margin-top: 4px; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; }
+  .toolbar .meta-2 { flex-basis: 100%; }
+  .target-chip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 4px 0 8px; border-radius: 12px; background: var(--blue-50); color: var(--blue); font-weight: 700; }
+  .target-chip button { width: 18px; height: 18px; border: 0; border-radius: 9px; background: transparent; color: var(--blue); cursor: pointer; display: grid; place-items: center; }
+  .target-chip button:hover { background: var(--blue-100); }
+  .toolbar > div:first-child { flex: 1; min-width: 0; }
+  .sortbox { display: flex; align-items: center; gap: 8px; margin-left: auto; flex: none; }
+  .sortbox label { font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+  .sortbox .field { width: 200px; }
+
+  .tablewrap { flex: 1; overflow: auto; }
+  table { width: 100%; border-collapse: separate; border-spacing: 0; }
+  th {
+    position: sticky; top: 0; z-index: 2; height: 40px; padding: 0 10px;
+    background: var(--wash); border-bottom: 1px solid var(--line);
+    text-align: left; font-size: 12px; font-weight: 700; color: var(--muted); white-space: nowrap;
+  }
+  th.sortable { cursor: pointer; user-select: none; }
+  th.sortable:hover { color: var(--ink); }
+  th.sorted { color: var(--blue); }
+  th .arrow { display: inline-block; width: 10px; margin-left: 4px; }
+  th.num, td.num { text-align: right; }
+  td { height: 76px; padding: 12px 10px; border-bottom: 1px solid var(--line-2); vertical-align: middle; white-space: nowrap; }
+  tbody tr { cursor: pointer; transition: background .1s; }
+  tbody tr:hover td { background: var(--wash); }
+  tbody tr.sel td { background: var(--blue-50); }
+  tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--blue); }
+  td .sub { margin-top: 2px; }
+
+  .val { display: flex; flex-direction: column; gap: 5px; width: 44px; }
+  .val-n { font-weight: 800; font-size: 15px; color: var(--ink); }
+  .val-bar { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+  .val-bar i { display: block; height: 100%; background: var(--blue); border-radius: 2px; }
+  .rent { font-weight: 800; font-size: 15px; }
+  td.addr { white-space: normal; min-width: 170px; width: 100%; }
+  table.empty-table thead { display: none; }
+  .addr-line { font-weight: 700; color: var(--ink); }
+  .addr-line:hover { color: var(--blue); }
+  .srcs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .src { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 7px; border-radius: 4px; background: var(--line-2); color: var(--ink-2); font-size: 11px; font-weight: 600; }
+  .src:hover { background: var(--blue-50); color: var(--blue); text-decoration: none; }
+  .src b { font-weight: 800; }
+  .flag { display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 4px; background: var(--orange-50); color: var(--orange-600); font-size: 11px; font-weight: 700; }
+  .grade { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; color: #fff; font-weight: 800; font-size: 13px; }
+  .dist-n { font-weight: 700; }
+  .go {
+    display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: var(--r);
+    background: var(--orange); color: #fff; font-weight: 700; font-size: 13px; white-space: nowrap;
+    box-shadow: var(--shadow-sm); transition: background .12s;
+  }
+  .go:hover { background: var(--orange-600); text-decoration: none; }
+  th.gocol, td.gocol { position: sticky; right: 0; width: 1%; }
+  td.gocol { background: var(--white); box-shadow: -1px 0 0 var(--line-2); }
+  th.gocol { z-index: 3; }
+  .empty { padding: 72px 24px; text-align: center; }
+  .empty h2 { margin: 0 0 6px; font-size: 16px; }
+  .empty p { margin: 0; color: var(--muted); }
+
+  /* ---------- map ---------- */
+  .mapwrap { flex: 1 1 36%; min-width: 0; position: relative; border-left: 1px solid var(--line); }
+  #map { position: absolute; inset: 0; background: var(--wash); }
+  .picking #map { cursor: crosshair; }
+  .leaflet-tile-pane { filter: saturate(.45) contrast(1.03) brightness(1.02); }
+  .map-close { position: absolute; top: 12px; right: 12px; z-index: 600; box-shadow: var(--shadow-sm); }
+  .legend {
+    position: absolute; left: 12px; bottom: 24px; z-index: 600; display: flex; gap: 12px; align-items: center;
+    height: 32px; padding: 0 12px; border-radius: var(--r); background: var(--white); border: 1px solid var(--line);
+    box-shadow: var(--shadow-sm); font-size: 12px; font-weight: 600; color: var(--ink-2);
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .legend i { width: 9px; height: 9px; border-radius: 50%; }
+  .legend .lbl { color: var(--muted); font-weight: 700; }
+  .target-pin span { display: block; width: 18px; height: 18px; border-radius: 50%; background: var(--blue); border: 3px solid #fff; box-shadow: 0 0 0 2px var(--blue), var(--shadow-md); }
+  .leaflet-popup-content-wrapper { border-radius: 10px; box-shadow: var(--shadow-md); }
+  .leaflet-popup-content { margin: 14px 16px; font: 13px/1.45 "Manrope", sans-serif; min-width: 220px; }
+  .pop-price { font-size: 17px; font-weight: 800; }
+  .pop-price span { font-size: 13px; font-weight: 600; color: var(--muted); margin-left: 4px; }
+  .pop-addr { font-weight: 700; margin-top: 2px; }
+  .pop-meta { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .pop .go { margin-top: 10px; }
+  .pop .srcs { margin-top: 8px; }
+  .leaflet-container a.go { color: #fff; }
+  .leaflet-control-zoom a { color: var(--ink-2) !important; }
+
+  /* ---------- loading ---------- */
+  .loading { position: fixed; inset: 64px 0 0 0; z-index: 1050; display: grid; place-items: center; background: rgba(255, 255, 255, .72); backdrop-filter: blur(2px); }
+  .loading-card { display: flex; align-items: center; gap: 14px; max-width: 440px; padding: 18px 22px; border-radius: 12px; background: var(--white); border: 1px solid var(--line); box-shadow: var(--shadow-md); font-weight: 600; color: var(--ink-2); }
+  .spinner { width: 22px; height: 22px; border-radius: 50%; border: 3px solid var(--blue-100); border-top-color: var(--blue); animation: spin .8s linear infinite; flex: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 980px) {
+    header { height: auto; flex-wrap: wrap; padding: 12px 16px; }
+    .search { order: 3; flex-basis: 100%; max-width: none; }
+    main { flex-direction: column; overflow: auto; }
+    aside { width: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+    .side-body { overflow: visible; }
+    .content { flex-direction: column; }
+    .mapwrap { min-height: 380px; border-left: 0; border-top: 1px solid var(--line); order: -1; }
+    .tablewrap { overflow: auto; max-height: none; }
+    .toolbar { flex-wrap: wrap; padding: 12px 16px; }
+    .sortbox { margin-left: 0; }
+    .loading { inset: 0; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="brand-mark"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5" stroke="#f97316"/></svg></span>
+    <span>Launch</span>
+  </div>
+  <form class="search" id="locForm" autocomplete="off">
+    <svg class="glass" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input class="field" id="locInput" placeholder="Search an address, office, school or neighborhood">
+    <button class="btn blue" type="submit">Search</button>
+    <button class="btn icon" type="button" id="pickBtn" title="Pick a location on the map">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.1 7-11.5A7 7 0 0 0 5 9.5C5 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+    </button>
+    <div class="results" id="locResults" hidden></div>
+  </form>
+  <div class="spacer"></div>
+  <div class="hgroup">
+    <button class="btn" id="filtersToggle" title="Show or hide filters">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+      Filters <span class="badge" id="filterCount" hidden></span>
+    </button>
+    <button class="btn" id="mapToggle" title="Show or hide the map">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 4-6 2v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg>
+      Map
+    </button>
+    <button class="btn icon" id="refreshBtn" title="Re-fetch listings from every source">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
+    </button>
+  </div>
+</header>
+
+<main>
+  <aside id="filters">
+    <div class="side-head">
+      <h2>Filters</h2>
+      <button class="btn icon" id="closeFilters" title="Hide filters">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/></svg>
+      </button>
+    </div>
+    <div class="side-body">
+      <section class="fs">
+        <div class="fs-head"><h3>Bedrooms</h3></div>
+        <div class="seg" id="bedSeg"></div>
+      </section>
+
+      <section class="fs">
+        <div class="fs-head"><h3>Max rent</h3><span class="fs-note">per month</span></div>
+        <div class="grid2" id="budgets"></div>
+        <p class="hint">Leave blank for no limit. The value score compares each rent with similar listings nearby, wherever you search.</p>
+      </section>
+
+      <section class="fs">
+        <div class="fs-head"><h3>Distance</h3><span class="fs-val" id="distLabel"></span></div>
+        <input type="range" id="maxDist" min="0.25" max="10" step="0.25">
+        <div class="scale"><span>¼ mi</span><span>10 mi</span></div>
+        <p class="hint" id="distHint"></p>
+      </section>
+
+      <section class="fs">
+        <div class="fs-head"><h3>Neighborhood safety</h3><span class="fs-note">A is safest</span></div>
+        <div class="seg" id="gradeSeg"></div>
+        <p class="hint">From local police incident reports near each building, where the city publishes them (San Francisco so far). Listings without data always pass.</p>
+      </section>
+
+      <section class="fs">
+        <div class="fs-head"><h3>Size and value</h3></div>
+        <div class="stack">
+          <div class="affix suffix" data-suf="sq ft"><input class="field" id="minSqft" type="number" min="0" step="50" placeholder="Min size"></div>
+          <div>
+            <div class="fs-head" style="margin-bottom:8px"><span class="sub" style="font-weight:600">Min value score</span><span class="fs-val" id="minScoreLabel"></span></div>
+            <input type="range" id="minScore" min="0" max="90" step="5">
+          </div>
+        </div>
+      </section>
+
+      <section class="fs">
+        <div class="fs-head"><h3>Sources</h3></div>
+        <div class="checks" id="srcChecks"></div>
+        <div id="srcStatus"></div>
+      </section>
+
+      <section class="fs">
+        <div class="fs-head"><h3>Neighborhoods</h3><span><button class="link" id="hoodAll">All</button> <span class="fs-note">·</span> <button class="link" id="hoodNone">None</button></span></div>
+        <input class="field" id="hoodQ" placeholder="Find a neighborhood">
+        <div class="checks hoods" id="hoods"></div>
+      </section>
+
+      <section class="fs">
+        <div class="fs-head"><h3>More</h3></div>
+        <div class="checks">
+          <label class="check"><input type="checkbox" id="hideFlagged"> Hide unusually cheap listings</label>
+          <label class="check"><input type="checkbox" id="prefer1"> Prefer 1-bedrooms</label>
+        </div>
+        <input class="field" id="textQ" placeholder="Filter by address" style="margin-top:10px">
+      </section>
+    </div>
+    <div class="side-foot">
+      <span id="activeNote">No filters changed</span>
+      <button class="btn" id="resetBtn">Reset</button>
+    </div>
+  </aside>
+
+  <div class="content">
+    <section class="list">
+      <div class="toolbar">
+        <div>
+          <h1 id="count">Find your next place</h1>
+          <div class="sub" id="meta">Search a location to see rentals within 10 miles of it.</div>
+        </div>
+        <div class="sortbox">
+          <label for="sortSel">Sort by</label>
+          <select class="field" id="sortSel">
+            <option value="score:desc">Best value</option>
+            <option value="price:asc">Price, low to high</option>
+            <option value="price:desc">Price, high to low</option>
+            <option value="dist:asc">Distance, nearest</option>
+            <option value="hood_s:desc">Safest area</option>
+            <option value="sqft:desc">Size, largest</option>
+            <option value="ppsf:asc">Price per sq ft</option>
+            <option value="updated:desc">Recently updated</option>
+          </select>
+        </div>
+      </div>
+      <div class="tablewrap" id="tablewrap">
+        <table>
+          <thead><tr id="thead"></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+        <div class="empty" id="empty" hidden><h2 id="emptyTitle"></h2><p id="emptyText"></p></div>
+      </div>
+    </section>
+
+    <section class="mapwrap">
+      <div id="map"></div>
+      <button class="btn icon map-close" id="closeMap" title="Hide map">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
+      </button>
+      <div class="legend">
+        <span class="lbl">Safety</span>
+        <span><i style="background:var(--gA)"></i>A</span><span><i style="background:var(--gB)"></i>B</span>
+        <span><i style="background:var(--gC)"></i>C</span><span><i style="background:var(--gD)"></i>D</span>
+        <span><i style="background:var(--gF)"></i>F</span><span><i style="background:var(--gU)"></i>No data</span>
+      </div>
+    </section>
+  </div>
+</main>
+
+<div class="loading" id="loading" hidden><div class="loading-card"><span class="spinner"></span><span id="loadingText">Loading listings</span></div></div>
+
+<script>
+// ---------- config ----------
+const WEIGHTS = { price: 0.30, hood: 0.26, loc: 0.24, space: 0.20 };
+// Everything below is relative to the listings found around the searched place, so a score
+// means the same thing in a dense city as in a suburb or small town.
+// Price: 0.5 at the local median rent for the bedroom count, 1 at PRICE_SPREAD below it, 0 at PRICE_SPREAD above.
+const PRICE_SPREAD = 0.25;
+// "Local" = same-bedroom listings within the first of these radii that has enough of them; else the whole search
+const LOCAL_RADII_MI = [1.5, 3, 6], LOCAL_MIN_COUNT = 8;
+// Location: 1 at the NEAR_PCT-th percentile of listing distances, 0 at FAR_PCT, falling (down to -1) beyond it
+const NEAR_PCT = 0.10, FAR_PCT = 0.60, MIN_DIST_SPAN_MI = 0.5;
+const ROUTE_FACTOR = 1.25, WALK_MIN_PER_MI = 20;
+const BED_LABELS = { 0: "Studio", 1: "1 bd", 2: "2 bd", 3: "3 bd" };
+const GRADE_ORDER = "ABCDF";
+const GRADE_CHOICES = [["F", "Any"], ["D", "D+"], ["C", "C+"], ["B", "B+"], ["A", "A"]];
+const SOURCE_NAMES = { redfin: "Redfin", hotpads: "HotPads", rentcom: "Rent.com", apartmentguide: "ApartmentGuide", apartmentlist: "Apartment List", rentcast: "RentCast", rentable: "Rentable",
+                       avalonbay: "AvalonBay", essex: "Essex", udr: "UDR", greystar: "Greystar" };
+const srcName = (k) => SOURCE_NAMES[k] || k;
+const FETCH_RADIUS_MI = 10;                    // listings are fetched this far out; the slider narrows it
+const DEFAULTS = {
+  beds: [1, 2],
+  budget: {},                                  // bedroom count -> max rent; missing = no limit
+  maxDist: FETCH_RADIUS_MI, minGrade: "F", minSqft: 0, minScore: 0,
+  hoods: null,                                 // null = all
+  sources: null,                               // null = all
+  hideFlagged: true, prefer1: true, q: "",
+  sort: "score:desc",
+};
+
+// ---------- state ----------
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("sfapt:" + k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("sfapt:" + k, JSON.stringify(v)); } catch {} },
+};
+let F = Object.assign(structuredClone(DEFAULTS), store.get("filters", {}));
+// Max rents used to default to San Francisco levels; drop them if they were never changed
+const OLD_SF_BUDGET = { 0: 2500, 1: 3000, 2: 6000, 3: 8000 };
+if (Object.entries(OLD_SF_BUDGET).every(([b, v]) => F.budget[b] === v)) F.budget = {};
+let panels = Object.assign({ filters: true, map: true }, store.get("panels", {}));
+let target = store.get("target", null);
+let all = [], typical = {}, areaMedian = {}, distScale = null, selectedId = null, sourceStatus = [], fetchedAt = null, hoodQ = "";
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtDate = (d) => d ? new Date(d + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "";
+const money = (n) => "$" + Math.round(n).toLocaleString();
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const gradeColor = (g) => cssVar("--g" + (GRADE_ORDER.includes(g) ? g : "U"));
+const sameSet = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
+
+function haversine(a, b) {
+  const R = 3958.8, r = Math.PI / 180;
+  const dLat = (b[0] - a[0]) * r, dLon = (b[1] - a[1]) * r;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+// ---------- scoring ----------
+const median = (xs) => {
+  if (!xs.length) return null;
+  const s = [...xs].sort((a, b) => a - b), m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+};
+const percentile = (sorted, p) => sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))];
+
+// Market baselines for the current search, recomputed whenever new listings arrive
+function computeMarket() {
+  typical = {}; areaMedian = {}; distScale = null;
+  for (const b of [0, 1, 2, 3]) {
+    const same = all.filter((l) => l.beds === b);
+    typical[b] = median(same.filter((l) => !l.sqft_est).map((l) => l.sqft));
+    areaMedian[b] = median(same.map((l) => l.price));
+    for (const l of same) l.mkt = localMedian(l, same) ?? areaMedian[b];
+  }
+  for (const l of all) l.dist = target ? haversine([target.lat, target.lon], [l.lat, l.lon]) : null;
+  const d = all.map((l) => l.dist).filter((x) => x != null).sort((a, b) => a - b);
+  if (d.length) {
+    const near = percentile(d, NEAR_PCT);
+    distScale = { near, far: Math.max(percentile(d, FAR_PCT), near + MIN_DIST_SPAN_MI) };
+  }
+}
+
+// Median rent of same-bedroom listings near this one, or null if there are too few
+function localMedian(l, same) {
+  for (const r of LOCAL_RADII_MI) {
+    const deg = r / 69 * 1.5;  // cheap box check before the exact distance
+    const prices = same.filter((o) => o !== l && Math.abs(o.lat - l.lat) < deg && Math.abs(o.lon - l.lon) < deg
+      && haversine([l.lat, l.lon], [o.lat, o.lon]) <= r).map((o) => o.price);
+    if (prices.length >= LOCAL_MIN_COUNT) return median(prices);
+  }
+  return null;
+}
+
+function scoreAll() {
+  for (const l of all) {
+    l.walk = l.dist == null ? null : Math.round(l.dist * ROUTE_FACTOR * WALK_MIN_PER_MI);
+    l.ppsf = l.sqft_est ? null : l.price / l.sqft;
+    const t = typical[l.beds], m = l.mkt;
+    const parts = {
+      price: m ? clamp(0.5 + (m - l.price) / (2 * PRICE_SPREAD * m)) : 0.5,
+      hood: l.hood_s,                          // null where the city has no safety data
+      space: l.sqft_est || !t ? 0.4 : clamp(0.5 + (l.sqft - t) / t),
+      loc: l.dist == null || !distScale ? null
+        : Math.max(-1, Math.min(1, (distScale.far - l.dist) / (distScale.far - distScale.near))),
+    };
+    let sum = WEIGHTS.price * parts.price + WEIGHTS.space * parts.space;
+    let wsum = WEIGHTS.price + WEIGHTS.space;
+    if (parts.hood != null) { sum += WEIGHTS.hood * parts.hood; wsum += WEIGHTS.hood; }
+    if (parts.loc != null) { sum += WEIGHTS.loc * parts.loc; wsum += WEIGHTS.loc; }
+    l.parts = parts;
+    l.score = 100 * sum / wsum + (F.prefer1 && l.beds === 1 ? 5 : 0);
+  }
+}
+
+// ---------- filtering & sorting ----------
+function filtered() {
+  const minG = GRADE_ORDER.indexOf(F.minGrade);
+  const q = F.q.trim().toLowerCase();
+  const hoodSet = F.hoods ? new Set(F.hoods) : null;
+  return all.filter((l) =>
+    F.beds.includes(l.beds) &&
+    l.price <= (F.budget[l.beds] || Infinity) &&
+    (l.grade === "?" || GRADE_ORDER.indexOf(l.grade) <= minG) &&
+    (!F.minSqft || (!l.sqft_est && l.sqft >= F.minSqft)) &&
+    l.score >= F.minScore &&
+    (!hoodSet || hoodSet.has(l.hood)) &&
+    (!F.sources || l.sources.some((o) => F.sources.includes(o.source))) &&
+    (!F.hideFlagged || !l.flags.length) &&
+    (l.dist == null || l.dist <= F.maxDist) &&
+    (!q || l.address.toLowerCase().includes(q) || l.hood.toLowerCase().includes(q))
+  );
+}
+
+function sortRows(rows) {
+  const [key, dir] = F.sort.split(":");
+  const sign = dir === "asc" ? 1 : -1;
+  const val = (l) => key === "sqft" ? (l.sqft_est ? null : l.sqft) : l[key];
+  return rows.sort((a, b) => {
+    if (key === "score" && !!a.flags.length !== !!b.flags.length) return a.flags.length ? 1 : -1;
+    const va = val(a), vb = val(b);
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;      // missing values always last
+    if (vb == null) return -1;
+    return va < vb ? -sign : va > vb ? sign : 0;
+  });
+}
+
+// How many filters differ from the defaults (shown on the Filters button)
+function activeFilterCount() {
+  let n = 0;
+  if (!sameSet(F.beds, DEFAULTS.beds)) n++;
+  if (F.beds.some((b) => F.budget[b])) n++;
+  if (F.maxDist < FETCH_RADIUS_MI) n++;
+  if (F.minGrade !== "F") n++;
+  if (F.minSqft) n++;
+  if (F.minScore) n++;
+  if (F.sources) n++;
+  if (F.hoods) n++;
+  if (F.q.trim()) n++;
+  if (!F.hideFlagged) n++;
+  return n;
+}
+
+// ---------- table ----------
+const COLS = [
+  { key: "score", label: "Value", dir: "desc" },
+  { key: "price", label: "Rent", num: true, dir: "asc" },
+  { key: "hood_s", label: "Safety", dir: "desc" },
+  { key: "address", label: "Address", dir: "asc" },
+  { key: "dist", label: "Distance", num: true, dir: "asc" },
+  { key: null, label: "", cls: "gocol" },
+];
+
+function renderHead() {
+  const [key, dir] = F.sort.split(":");
+  $("thead").innerHTML = COLS.map((c) => {
+    const sorted = c.key && c.key === key;
+    const cls = [c.num && "num", c.cls, c.key && "sortable", sorted && "sorted"].filter(Boolean).join(" ");
+    return `<th data-k="${c.key ?? ""}" class="${cls}">${c.label}${c.key ? `<span class="arrow">${sorted ? (dir === "asc" ? "↑" : "↓") : ""}</span>` : ""}</th>`;
+  }).join("");
+}
+
+function scoreTitle(l) {
+  const p = l.parts, pct = (x) => Math.round(x * 100);  // distance can go negative when far
+  return `Price ${pct(p.price)}${l.mkt ? ` (local median ${money(l.mkt)})` : ""} · Safety ${p.hood == null ? "n/a" : pct(p.hood)} · Space ${pct(p.space)}` + (p.loc == null ? "" : ` · Distance ${pct(p.loc)}`);
+}
+
+// The posting to open: the cheapest site that has a real listing page.
+// RentCast publishes none (its link is a web search), so it's only used as a last resort.
+const NO_LISTING_PAGE = new Set(["rentcast"]);
+const bestPosting = (l) => l.sources.find((o) => !NO_LISTING_PAGE.has(o.source)) || l.sources[0];
+const ARROW = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg>';
+
+function goButton(l) {
+  const o = bestPosting(l), real = !NO_LISTING_PAGE.has(o.source);
+  return `<a class="go" href="${esc(o.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()"
+    title="${real ? "Open the posting on " + srcName(o.source) : "No listing page from " + srcName(o.source) + "; searches the web for it"}">${real ? "Go to apartment" : "Find listing"} ${ARROW}</a>`;
+}
+
+function sourceBadges(l) {
+  return `<div class="srcs">${l.sources.map((o) =>
+    `<a class="src" href="${esc(o.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Open on ${srcName(o.source)}">${srcName(o.source)}${l.sources.length > 1 ? ` <b>${money(o.price)}</b>` : ""}</a>`
+  ).join("")}${l.flags.length ? `<span class="flag" title="${esc(l.flags.join("; "))}">Check price</span>` : ""}</div>`;
+}
+
+function directions(l) {
+  if (!target) return "";
+  const u = `https://www.google.com/maps/dir/?api=1&origin=${l.lat},${l.lon}&destination=${target.lat},${target.lon}&travelmode=transit`;
+  return `<a href="${u}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Transit</a>`;
+}
+
+function renderTable(rows) {
+  $("tbody").innerHTML = rows.map((l) => {
+    const score = Math.round(l.score);
+    const unitLine = `${BED_LABELS[l.beds]}${l.baths ? ` · ${+l.baths} ba` : ""}`;
+    const meta = [l.hood, l.updated && "Updated " + fmtDate(l.updated)].filter(Boolean).map(esc).join(" · ");
+    return `
+    <tr data-id="${esc(l.id)}" class="${l.id === selectedId ? "sel" : ""}">
+      <td><div class="val" title="${scoreTitle(l)}"><span class="val-n">${score}</span><span class="val-bar"><i style="width:${clamp(score / 100) * 100}%"></i></span></div></td>
+      <td class="num"><div class="rent" title="${l.ppsf ? "$" + l.ppsf.toFixed(2) + " per sq ft" : "Size not listed"}">${money(l.price)}</div>
+        <div class="sub">${unitLine} · ${l.sqft_est ? "size n/a" : l.sqft.toLocaleString() + " sq ft"}</div></td>
+      <td><span class="grade" style="background:${gradeColor(l.grade)}" title="${l.incidents == null ? "No safety data for this city yet" : Math.round(l.incidents) + " weighted incidents nearby · " + esc(l.safety_note)}">${l.grade}</span></td>
+      <td class="addr"><a class="addr-line" href="${esc(bestPosting(l).url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(l.address)}</a>
+        <div class="sub">${meta}</div>${sourceBadges(l)}</td>
+      <td class="num">${l.dist == null ? '<span class="sub">—</span>' : `<div class="dist-n">${l.dist.toFixed(1)} mi</div><div class="sub">${l.walk <= 60 ? `${l.walk} min walk · ` : ""}${directions(l)}</div>`}</td>
+      <td class="gocol">${goButton(l)}</td>
+    </tr>`;
+  }).join("");
+  $("empty").hidden = rows.length > 0;
+  document.querySelector("#tablewrap table").classList.toggle("empty-table", !rows.length);
+  $("emptyTitle").textContent = target ? "No listings match" : "Start with a location";
+  $("emptyText").textContent = target ? "Try widening the distance, raising max rent, or resetting filters."
+    : "Search an address or place above, or pick a spot on the map, to see rentals within 10 miles.";
+}
+
+// ---------- map ----------
+const map = L.map("map", { zoomControl: false }).setView([39.5, -98.35], 4);
+L.control.zoom({ position: "topleft" }).addTo(map);
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 19,
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+}).addTo(map);
+const markerLayer = L.layerGroup().addTo(map);
+const targetIcon = L.divIcon({ className: "target-pin", html: "<span></span>", iconSize: [18, 18], iconAnchor: [9, 9] });
+let markers = new Map(), targetMarker = null, radiusCircle = null, picking = false;
+
+function popupHtml(l) {
+  return `<div class="pop">
+    <div class="pop-price">${money(l.price)}<span>${BED_LABELS[l.beds]}${l.sqft_est ? "" : " · " + l.sqft.toLocaleString() + " sq ft"}</span></div>
+    <div class="pop-addr">${esc(l.address)}</div>
+    <div class="pop-meta">${esc(l.hood)} · Safety ${l.grade} · Value ${Math.round(l.score)}</div>
+    ${l.dist == null ? "" : `<div class="pop-meta">${l.dist.toFixed(1)} mi${l.walk <= 60 ? ` · ${l.walk} min walk` : ""} · ${directions(l)}</div>`}
+    ${goButton(l)}
+    ${sourceBadges(l)}
+  </div>`;
+}
+
+function markerStyle(l, selected) {
+  return { radius: selected ? 9 : 6, weight: selected ? 3 : 1.5, color: selected ? cssVar("--orange") : "#fff",
+           fillColor: gradeColor(l.grade), fillOpacity: .95 };
+}
+
+function renderMap(rows) {
+  markerLayer.clearLayers();
+  markers = new Map();
+  for (const l of rows) {
+    const m = L.circleMarker([l.lat, l.lon], markerStyle(l, l.id === selectedId)).bindPopup(() => popupHtml(l));
+    m.on("click", () => select(l.id, { scroll: true }));
+    m.addTo(markerLayer);
+    markers.set(l.id, { m, l });
+  }
+  if (targetMarker) { map.removeLayer(targetMarker); targetMarker = null; }
+  if (radiusCircle) { map.removeLayer(radiusCircle); radiusCircle = null; }
+  if (target) {
+    radiusCircle = L.circle([target.lat, target.lon], { radius: F.maxDist * 1609.34, color: cssVar("--blue"), weight: 1.5,
+      dashArray: "6 6", fillColor: cssVar("--blue"), fillOpacity: .04, interactive: false }).addTo(map);
+    targetMarker = L.marker([target.lat, target.lon], { icon: targetIcon, title: target.label, zIndexOffset: 1000 })
+      .addTo(map).bindPopup(`<b>${esc(target.label)}</b><div class="pop-meta">Distances are measured from here</div>`);
+  }
+}
+
+function select(id, { scroll = false, pan = false } = {}) {
+  selectedId = id;
+  document.querySelectorAll("tbody tr.sel").forEach((r) => r.classList.remove("sel"));
+  const row = document.querySelector(`tbody tr[data-id="${CSS.escape(id)}"]`);
+  if (row) { row.classList.add("sel"); if (scroll) row.scrollIntoView({ block: "center", behavior: "smooth" }); }
+  markers.forEach(({ m, l }, mid) => m.setStyle(markerStyle(l, mid === id)));
+  const hit = markers.get(id);
+  if (hit) { hit.m.bringToFront(); if (pan && panels.map) { map.panTo(hit.m.getLatLng()); hit.m.openPopup(); } }
+}
+
+// ---------- panels ----------
+function applyPanels() {
+  document.body.classList.toggle("no-filters", !panels.filters);
+  document.body.classList.toggle("no-map", !panels.map);
+  $("filtersToggle").classList.toggle("on", panels.filters);
+  $("mapToggle").classList.toggle("on", panels.map);
+  store.set("panels", panels);
+  setTimeout(() => map.invalidateSize(), 60);
+}
+const togglePanel = (name, show = !panels[name]) => { panels[name] = show; applyPanels(); };
+
+// ---------- sidebar ----------
+function renderSidebar() {
+  $("bedSeg").innerHTML = [0, 1, 2, 3].map((b) => `<button type="button" class="${F.beds.includes(b) ? "on" : ""}" data-b="${b}">${BED_LABELS[b]}</button>`).join("");
+  $("budgets").innerHTML = [0, 1, 2, 3].filter((b) => F.beds.includes(b)).map((b) =>
+    `<div><label for="bud${b}">${BED_LABELS[b] === "Studio" ? "Studio" : BED_LABELS[b].replace("bd", "bedroom")}</label>
+      <div class="affix" data-pre="$"><input class="field" id="bud${b}" data-b="${b}" type="number" step="100" min="0" placeholder="${areaMedian[b] ? "Median " + money(areaMedian[b]) : "No max"}" value="${F.budget[b] || ""}"></div></div>`
+  ).join("") || '<p class="hint" style="margin:0">Pick at least one bedroom count.</p>';
+  $("maxDist").value = F.maxDist;
+  $("maxDist").disabled = !target;
+  $("distLabel").textContent = target ? `${F.maxDist} mi` : "";
+  $("distHint").textContent = !target ? "Search a location first."
+    : F.maxDist <= 3 ? `About a ${Math.round(F.maxDist * ROUTE_FACTOR * WALK_MIN_PER_MI)} minute walk.` : "Transit or driving distance.";
+  $("gradeSeg").innerHTML = GRADE_CHOICES.map(([g, label]) => `<button type="button" class="${F.minGrade === g ? "on" : ""}" data-g="${g}">${label}</button>`).join("");
+  $("minSqft").value = F.minSqft || "";
+  $("minScore").value = F.minScore;
+  $("minScoreLabel").textContent = F.minScore ? F.minScore + "+" : "Any";
+  $("hideFlagged").checked = F.hideFlagged;
+  $("prefer1").checked = F.prefer1;
+  $("textQ").value = F.q;
+  $("sortSel").value = F.sort;
+  document.body.classList.toggle("picking", picking);
+  $("pickBtn").classList.toggle("on", picking);
+  const n = activeFilterCount();
+  $("filterCount").hidden = !n;
+  $("filterCount").textContent = n;
+  $("activeNote").textContent = n ? `${n} filter${n > 1 ? "s" : ""} changed` : "Default filters";
+}
+
+function renderSources() {
+  const counts = {};
+  all.forEach((l) => l.sources.forEach((o) => counts[o.source] = (counts[o.source] || 0) + 1));
+  const keys = Object.keys(counts).sort();
+  $("srcChecks").innerHTML = keys.map((k) =>
+    `<label class="check"><input type="checkbox" data-s="${esc(k)}" ${!F.sources || F.sources.includes(k) ? "checked" : ""}> ${srcName(k)}<span class="n">${counts[k].toLocaleString()}</span></label>`
+  ).join("") || '<p class="hint" style="margin:0">Sources appear after a search.</p>';
+  $("srcStatus").innerHTML = sourceStatus.filter((st) => !st.ok || !st.count).map((st) =>
+    st.pending
+      ? `<div class="note-bad note-pending"><span class="spinner sm"></span><b>${esc(st.name)}</b> · loading, listings appear automatically</div>`
+      : `<div class="note-bad"><b>${esc(st.name)}</b> · ${esc(st.ok ? "no listings here" : st.note)}</div>`
+  ).join("");
+}
+
+function renderHoods() {
+  const counts = {};
+  all.filter((l) => F.beds.includes(l.beds)).forEach((l) => counts[l.hood] = (counts[l.hood] || 0) + 1);
+  const q = hoodQ.trim().toLowerCase();
+  const names = Object.keys(counts).sort().filter((n) => !q || n.toLowerCase().includes(q));
+  const on = F.hoods ? new Set(F.hoods) : null;
+  $("hoods").innerHTML = names.map((n) =>
+    `<label class="check"><input type="checkbox" data-h="${esc(n)}" ${!on || on.has(n) ? "checked" : ""}> ${esc(n)}<span class="n">${counts[n]}</span></label>`
+  ).join("") || `<p class="hint" style="margin:0">${all.length ? "No matches." : "Neighborhoods appear after a search."}</p>`;
+}
+
+function renderMeta(shown) {
+  if (!target) {
+    $("count").textContent = "Find your next place";
+    $("meta").textContent = "Search a location to see rentals within 10 miles of it.";
+    return;
+  }
+  $("count").innerHTML = `${shown.toLocaleString()} apartments<span>of ${all.filter((l) => F.beds.includes(l.beds)).length.toLocaleString()}</span>`;
+  const live = sourceStatus.filter((s) => s.ok && s.count).length;
+  const multi = all.filter((l) => l.sources.length > 1).length;
+  const time = fetchedAt ? new Date(fetchedAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) : "";
+  $("meta").innerHTML = `<span>Near</span><span class="target-chip">${esc(target.label)}<button id="clearTarget" title="Clear location">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></span>
+    <span class="meta-2">${live} source${live === 1 ? "" : "s"} · ${multi.toLocaleString()} listed on several sites${time ? " · updated " + time : ""}</span>`;
+  $("clearTarget").onclick = () => { target = null; store.set("target", null); all = []; sourceStatus = []; renderSources(); renderHoods(); render(); };
+}
+
+// ---------- render ----------
+function render({ fit = false } = {}) {
+  store.set("filters", F);
+  scoreAll();
+  const rows = sortRows(filtered());
+  renderMeta(rows.length);
+  renderSidebar();
+  renderHead();
+  renderTable(rows);
+  renderMap(rows);
+  if (fit) {
+    const pts = rows.map((l) => [l.lat, l.lon]);
+    if (target) pts.push([target.lat, target.lon]);
+    if (pts.length) map.fitBounds(pts, { padding: [40, 40], maxZoom: 15 });
+  }
+}
+
+// ---------- events ----------
+$("bedSeg").addEventListener("click", (e) => {
+  const b = +e.target.closest("[data-b]")?.dataset.b; if (isNaN(b)) return;
+  F.beds = F.beds.includes(b) ? F.beds.filter((x) => x !== b) : [...F.beds, b].sort();
+  renderHoods(); render();
+});
+$("gradeSeg").addEventListener("click", (e) => { const g = e.target.closest("[data-g]")?.dataset.g; if (g) { F.minGrade = g; render(); } });
+$("budgets").addEventListener("change", (e) => { const b = e.target.dataset.b; if (b != null) { F.budget[b] = +e.target.value || 0; render(); } });
+$("maxDist").addEventListener("input", (e) => { F.maxDist = +e.target.value; render(); });
+$("minSqft").addEventListener("change", (e) => { F.minSqft = +e.target.value || 0; render(); });
+$("minScore").addEventListener("input", (e) => { F.minScore = +e.target.value; render(); });
+$("hideFlagged").addEventListener("change", (e) => { F.hideFlagged = e.target.checked; render(); });
+$("prefer1").addEventListener("change", (e) => { F.prefer1 = e.target.checked; render(); });
+$("textQ").addEventListener("input", (e) => { F.q = e.target.value; render(); });
+$("sortSel").addEventListener("change", (e) => { F.sort = e.target.value; render(); });
+$("hoodQ").addEventListener("input", (e) => { hoodQ = e.target.value; renderHoods(); });
+$("hoods").addEventListener("change", (e) => {
+  const h = e.target.dataset.h; if (h == null) return;
+  const names = [...new Set(all.filter((l) => F.beds.includes(l.beds)).map((l) => l.hood))];
+  let on = F.hoods ? new Set(F.hoods) : new Set(names);
+  e.target.checked ? on.add(h) : on.delete(h);
+  F.hoods = on.size >= names.length ? null : [...on];
+  render();
+});
+$("srcChecks").addEventListener("change", (e) => {
+  const k = e.target.dataset.s; if (!k) return;
+  const keys = [...document.querySelectorAll("#srcChecks [data-s]")].map((c) => c.dataset.s);
+  let on = F.sources ? [...F.sources] : [...keys];
+  on = e.target.checked ? [...new Set([...on, k])] : on.filter((x) => x !== k);
+  F.sources = on.length === keys.length ? null : on;
+  render();
+});
+$("hoodAll").addEventListener("click", () => { F.hoods = null; renderHoods(); render(); });
+$("hoodNone").addEventListener("click", () => { F.hoods = []; renderHoods(); render(); });
+$("resetBtn").addEventListener("click", () => { F = structuredClone(DEFAULTS); hoodQ = ""; $("hoodQ").value = ""; renderSources(); renderHoods(); render({ fit: true }); });
+$("thead").addEventListener("click", (e) => {
+  const k = e.target.closest("th")?.dataset.k;
+  const c = COLS.find((c) => c.key && c.key === k); if (!c) return;
+  const [key, dir] = F.sort.split(":");
+  F.sort = `${c.key}:${key === c.key ? (dir === "asc" ? "desc" : "asc") : c.dir}`;
+  render();
+});
+$("tbody").addEventListener("click", (e) => { const tr = e.target.closest("tr"); if (tr) select(tr.dataset.id, { pan: true }); });
+$("filtersToggle").addEventListener("click", () => togglePanel("filters"));
+$("mapToggle").addEventListener("click", () => togglePanel("map"));
+$("closeFilters").addEventListener("click", () => togglePanel("filters", false));
+$("closeMap").addEventListener("click", () => togglePanel("map", false));
+
+// location search
+function setTarget(t) {
+  const moved = !target || haversine([target.lat, target.lon], [t.lat, t.lon]) > 0.1;
+  target = t; store.set("target", t);
+  $("locResults").hidden = true;
+  if (moved) { F.hoods = null; F.sources = null; }  // names and sources differ between areas
+  load();
+}
+const geocode = async (q) => (await fetch("/api/geocode?q=" + encodeURIComponent(q))).json();
+const shortLabel = (label) => label.split(",").slice(0, 2).join(",");
+$("locForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const q = $("locInput").value.trim(); if (!q) return;
+  const box = $("locResults");
+  box.hidden = false; box.innerHTML = '<div class="sub">Searching…</div>';
+  try {
+    const res = await geocode(q);
+    if (res.error || !res.length) { box.innerHTML = `<div class="sub">${res.error ? "Search failed. Try again." : "No matching places found."}</div>`; return; }
+    box.innerHTML = res.map((r, i) => `<div data-i="${i}">${esc(r.label)}</div>`).join("");
+    box.onclick = (ev) => {
+      const r = res[ev.target.closest("[data-i]")?.dataset.i]; if (!r) return;
+      setTarget({ lat: r.lat, lon: r.lon, label: shortLabel(r.label) });
+      $("locInput").value = "";
+    };
+  } catch { box.innerHTML = '<div class="sub">Search failed. Try again.</div>'; }
+});
+document.addEventListener("click", (e) => { if (!$("locForm").contains(e.target)) $("locResults").hidden = true; });
+$("pickBtn").addEventListener("click", () => {
+  picking = !picking;
+  if (picking && !panels.map) togglePanel("map", true);
+  renderSidebar();
+});
+map.on("click", (e) => {
+  if (!picking) return;
+  picking = false;
+  setTarget({ lat: e.latlng.lat, lon: e.latlng.lng, label: `Pin ${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}` });
+});
+
+// data
+let loadSeq = 0, pollTimer = null;
+const POLL_MS = 60000;  // how often to check back while a slow source is still loading
+
+async function load(refresh = false, { quiet = false } = {}) {
+  clearTimeout(pollTimer);
+  if (!target) { all = []; sourceStatus = []; $("loading").hidden = true; renderSources(); renderHoods(); render(); return; }
+  const seq = ++loadSeq;
+  $("loading").hidden = quiet;
+  $("loadingText").textContent = `Finding rentals within ${FETCH_RADIUS_MI} miles of ${target.label}. A new area can take up to a minute.`;
+  try {
+    const qs = `lat=${target.lat}&lon=${target.lon}&radius=${FETCH_RADIUS_MI}` + (refresh ? "&refresh=1" : "");
+    const data = await (await fetch("/api/listings?" + qs)).json();
+    if (seq !== loadSeq) return;  // a newer search replaced this one
+    if (data.error) throw new Error(data.error);
+    all = data.listings;
+    sourceStatus = data.sources || [];
+    fetchedAt = data.fetched_at;
+    computeMarket();
+    renderSources();
+    renderHoods();
+    render({ fit: !quiet });
+    if (data.pending) pollTimer = setTimeout(() => load(false, { quiet: true }), POLL_MS);
+  } catch (err) {
+    if (seq === loadSeq) { $("count").textContent = "Couldn't load listings"; $("meta").textContent = err.message; }
+  } finally {
+    if (seq === loadSeq) $("loading").hidden = true;
+  }
+}
+$("refreshBtn").addEventListener("click", () => load(true));
+
+applyPanels();
+(async () => {
+  const near = new URLSearchParams(location.search).get("near");
+  if (near) {
+    const res = await geocode(near).catch(() => []);
+    if (res.length) { setTarget({ lat: res[0].lat, lon: res[0].lon, label: shortLabel(res[0].label) }); return; }
+  }
+  load();
+})();
+</script>
+</body>
+</html>
